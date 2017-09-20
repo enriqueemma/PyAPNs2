@@ -49,30 +49,31 @@ class APNSClient(object):
 
     def push(self, n, device_token, topic=None):
 
-        response = None
-        apns_response = None
+        with self._lock:
+            response = None
+            apns_response = None
 
-        url = "/3/device/{}".format(device_token)
-        payload = n.payload.to_json()
-        headers = self.get_headers(n, topic=topic)
+            url = "/3/device/{}".format(device_token)
+            payload = n.payload.to_json()
+            headers = self.get_headers(n, topic=topic)
 
-        # la llamada es thread - safe.
-        stream_id = self.conn.request(
-            method="POST",
-            url=url,
-            body=payload,
-            headers=headers,
-        )
-        apns_response = self.conn.get_response(stream_id=stream_id)
+            # la llamada es thread - safe.
+            stream_id = self.conn.request(
+                method="POST",
+                url=url,
+                body=payload,
+                headers=headers,
+            )
+            apns_response = self.conn.get_response(stream_id=stream_id)
 
-        apns_ids = apns_response.headers.get("apns-id")
-        apns_id = apns_ids[0] if apns_ids else None
-        response = Response(status_code=apns_response.status, apns_id=apns_id)
+            apns_ids = apns_response.headers.get("apns-id")
+            apns_id = apns_ids[0] if apns_ids else None
+            response = Response(status_code=apns_response.status, apns_id=apns_id)
 
-        if apns_response.status != 200:
-            body = apns_response.read()
-            apns_data = json.loads(body)
-            response.timestamp = apns_data.get("timestamp")
-            response.reason = apns_data["reason"]
+            if apns_response.status != 200:
+                body = apns_response.read()
+                apns_data = json.loads(body)
+                response.timestamp = apns_data.get("timestamp")
+                response.reason = apns_data["reason"]
 
-        return response
+            return response
